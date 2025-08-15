@@ -69,6 +69,11 @@ logs/
 .env.test.local
 .env.production.local
 
+# Configuration files with sensitive data
+config.py
+*.key
+secrets.py
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
