@@ -112,6 +112,57 @@ class KiteDataFetcher:
         except Exception as e:
             logger.error(f"Error getting quotes: {e}")
             return {}
+    
+    def get_user_profile(self) -> Dict:
+        """Fetch user profile details"""
+        try:
+            from kiteconnect import KiteConnect
+            kite = KiteConnect(api_key=self.api_key)
+            kite.set_access_token(self.access_token)
+            
+            profile = kite.profile()
+            logger.info("Successfully retrieved user profile")
+            return profile
+        except Exception as e:
+            logger.error(f"Error fetching user profile: {e}")
+            return {}
+    
+    def get_user_holdings(self) -> List[Dict]:
+        """Fetch user's current holdings"""
+        try:
+            from kiteconnect import KiteConnect
+            kite = KiteConnect(api_key=self.api_key)
+            kite.set_access_token(self.access_token)
+            
+            holdings = kite.holdings()
+            logger.info(f"Retrieved {len(holdings)} holdings")
+            return holdings
+        except Exception as e:
+            logger.error(f"Error fetching holdings: {e}")
+            return []
+    
+    def get_historical_data(self, 
+                             instrument_token: int, 
+                             from_date: str, 
+                             to_date: str, 
+                             interval: str = 'day') -> List[Dict]:
+        """Fetch historical market data for a specific instrument"""
+        try:
+            from kiteconnect import KiteConnect
+            kite = KiteConnect(api_key=self.api_key)
+            kite.set_access_token(self.access_token)
+            
+            historical_data = kite.historical_data(
+                instrument_token=instrument_token,
+                from_date=from_date,
+                to_date=to_date,
+                interval=interval
+            )
+            logger.info(f"Retrieved {len(historical_data)} historical data points for token {instrument_token}")
+            return historical_data
+        except Exception as e:
+            logger.error(f"Error fetching historical data: {e}")
+            return []
 
 class ModularPaperTradingEngine:
     """Modular Paper Trading Engine supporting multiple strategies"""
@@ -425,9 +476,12 @@ def main():
     print("📊 Data Source: Live Kite API")
     print("=" * 50)
     
-    # Get API credentials
-    api_key = input("Enter your Kite API Key (for data only): ").strip()
-    access_token = input("Enter your Access Token: ").strip()
+    # Import configuration
+    import config
+    
+    # Use API credentials from config
+    api_key = config.KITE_API_KEY
+    access_token = config.KITE_ACCESS_TOKEN
     
     if not api_key or not access_token:
         print("❌ API credentials required for live data")
@@ -438,8 +492,43 @@ def main():
         print("\n🚀 Initializing Modular Paper Trading Engine...")
         engine = ModularPaperTradingEngine(api_key, access_token)
         
+        # Retrieve and display user details
+        print("\n👤 Retrieving User Details...")
+        user_profile = engine.kite.get_user_profile()
+        if user_profile:
+            print(f"User ID: {user_profile.get('user_id')}")
+            print(f"Username: {user_profile.get('username')}")
+        
+        # Retrieve and display user holdings
+        print("\n💼 Retrieving User Holdings...")
+        holdings = engine.kite.get_user_holdings()
+        if holdings:
+            print("Current Holdings:")
+            for holding in holdings:
+                print(f"  - {holding.get('tradingsymbol')}: {holding.get('quantity')} shares")
+                print(f"    Average Price: ₹{holding.get('average_price', 0):.2f}")
+                print(f"    Current Price: ₹{holding.get('last_price', 0):.2f}")
+                print(f"    Total Value: ₹{holding.get('quantity', 0) * holding.get('last_price', 0):.2f}")
+        
+        # Retrieve historical data for NIFTY 50
+        print("\n📊 Retrieving Historical Data for NIFTY 50...")
+        historical_data = engine.kite.get_historical_data(
+            instrument_token=26000,  # NIFTY 50 token
+            from_date='2024-01-01',
+            to_date='2024-01-02',
+            interval='day'
+        )
+        if historical_data:
+            print(f"Retrieved {len(historical_data)} historical data points")
+            # Print first and last data points
+            if historical_data:
+                print("First Data Point:")
+                print(historical_data[0])
+                print("\nLast Data Point:")
+                print(historical_data[-1])
+        
         # Add strategies
-        print("📋 Adding strategies...")
+        print("\n📋 Adding strategies...")
         
         # Import and add strategies dynamically
         try:
